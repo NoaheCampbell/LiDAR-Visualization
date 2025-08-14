@@ -1,83 +1,102 @@
-#ifndef ROVER_PROFILES_H
-#define ROVER_PROFILES_H
+#pragma once
 
+#include <cstdint>
 #include <string>
-#include <map>
-#include <mutex>
+#include <array>
+#include <unordered_map>
 
 /**
- * Rover configuration profile containing network and data file information
+ * Rover profile management for Multi-Rover LiDAR Visualization
+ * Handles port mapping and rover configuration as specified in PRD
  */
-struct RoverProfile {
-    std::string dataFile;
-    int posePort;
-    int lidarPort;
-    int telemPort;
-    int cmdPort;
-};
 
-/**
- * Thread-safe wrapper for rover profile management
- * Provides centralized access to rover configurations loaded from rover_profiles.h
- */
-class RoverProfiles {
-public:
-    /**
-     * Initialize the rover profiles system
-     * Must be called before any other methods
-     * @return true if initialization successful
-     */
-    static bool initialize();
+namespace RoverProfiles {
     
     /**
-     * Get the total number of configured rovers
-     * @return number of rovers
+     * Network ports for a single rover
      */
-    static int getRoverCount();
+    struct RoverPorts {
+        uint16_t posePort;      // Port for pose data reception
+        uint16_t lidarPort;     // Port for LiDAR data reception  
+        uint16_t telemetryPort; // Port for telemetry data reception
+        uint16_t commandPort;   // Port for command transmission
+        
+        RoverPorts() : posePort(0), lidarPort(0), telemetryPort(0), commandPort(0) {}
+        
+        RoverPorts(uint16_t pose, uint16_t lidar, uint16_t telemetry, uint16_t command)
+            : posePort(pose), lidarPort(lidar), telemetryPort(telemetry), commandPort(command) {}
+    };
     
     /**
-     * Get rover profile by rover ID
-     * @param roverId rover identifier (1-based)
-     * @return pointer to profile or nullptr if not found
+     * Complete rover profile including network and display configuration
      */
-    static const RoverProfile* getRoverProfile(int roverId);
+    struct RoverProfile {
+        uint8_t roverId;                    // Rover identifier (1-5)
+        RoverPorts ports;                   // Network port configuration
+        std::string displayName;            // Human-readable name
+        float color[4];                     // RGBA color for visualization
+        bool isActive;                      // Whether rover is currently active
+        std::string ipAddress;              // Rover IP address (default: localhost)
+        
+        RoverProfile() : roverId(0), isActive(false), ipAddress("127.0.0.1") {
+            color[0] = color[1] = color[2] = 1.0f; // White default
+            color[3] = 1.0f;
+        }
+    };
     
     /**
-     * Validate that all rover profiles have valid configurations
-     * @return true if all profiles are valid
+     * Rover profile manager class
      */
-    static bool validateProfiles();
+    class RoverProfileManager {
+    public:
+        RoverProfileManager();
+        ~RoverProfileManager() = default;
+        
+        // Profile access
+        const RoverProfile* getRoverProfile(uint8_t roverId) const;
+        RoverProfile* getRoverProfile(uint8_t roverId);
+        
+        // Port queries
+        uint16_t getPosePort(uint8_t roverId) const;
+        uint16_t getLidarPort(uint8_t roverId) const;
+        uint16_t getTelemetryPort(uint8_t roverId) const;
+        uint16_t getCommandPort(uint8_t roverId) const;
+        
+        // Rover management
+        bool isValidRoverId(uint8_t roverId) const;
+        void setRoverActive(uint8_t roverId, bool active);
+        bool isRoverActive(uint8_t roverId) const;
+        
+        // Configuration
+        void setRoverIPAddress(uint8_t roverId, const std::string& ipAddress);
+        std::string getRoverIPAddress(uint8_t roverId) const;
+        
+        // Utility functions
+        std::array<uint8_t, 5> getActiveRovers() const;
+        size_t getActiveRoverCount() const;
+        void enableAllRovers();
+        void disableAllRovers();
+        
+        // Port validation
+        bool isPortInUse(uint16_t port) const;
+        std::vector<uint16_t> getAllUsedPorts() const;
+        
+    private:
+        std::unordered_map<uint8_t, RoverProfile> profiles_;
+        
+        void initializeDefaultProfiles();
+        void validateRoverId(uint8_t roverId) const;
+    };
     
-    /**
-     * Check if a rover ID is valid
-     * @param roverId rover identifier to check
-     * @return true if rover ID exists
-     */
-    static bool isValidRoverId(int roverId);
+    // Global instance access
+    RoverProfileManager& getInstance();
     
-    /**
-     * Check if a port is already in use by any rover
-     * @param port port number to check
-     * @return true if port is in use
-     */
-    static bool isPortInUse(int port);
+    // Convenience functions for direct access
+    const RoverProfile* getRover(uint8_t roverId);
+    uint16_t getPosePort(uint8_t roverId);
+    uint16_t getLidarPort(uint8_t roverId);
+    uint16_t getTelemetryPort(uint8_t roverId);
+    uint16_t getCommandPort(uint8_t roverId);
+    bool isValidRover(uint8_t roverId);
     
-    /**
-     * Get all configured rover IDs
-     * @return vector of rover IDs
-     */
-    static std::vector<int> getAllRoverIds();
-
-private:
-    static std::map<int, RoverProfile> s_profiles;
-    static std::mutex s_mutex;
-    static bool s_initialized;
-    
-    // Load profiles from the emulator configuration
-    static void loadProfiles();
-    
-    // Validate a single profile
-    static bool validateProfile(const RoverProfile& profile);
-};
-
-#endif // ROVER_PROFILES_H
+} // namespace RoverProfiles

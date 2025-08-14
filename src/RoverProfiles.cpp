@@ -1,185 +1,202 @@
 #include "RoverProfiles.h"
-#include <map>
-#include <string>
+#include "Constants.h"
+#include <stdexcept>
 #include <algorithm>
-#include <iostream>
+#include <vector>
 
-// Need to include the required headers before including rover_profiles.h
-// and declare the namespace to avoid conflicts
-namespace {
-    #include <map>
-    #include <string>
+namespace RoverProfiles {
     
-    // Manually define the rover profile map since the emulator header is incomplete
-    struct EmulatorRoverProfile {
-        std::string dataFile;
-        int posePort;
-        int lidarPort;
-        int telemPort;
-        int cmdPort;
-    };
-    
-    static std::map<std::string, EmulatorRoverProfile> g_emulator_rover_profiles = {
-        { "1", { "data/rover1.dat", 9001, 10001, 11001, 8001} },
-        { "2", { "data/rover2.dat", 9002, 10002, 11002, 8002} },
-        { "3", { "data/rover3.dat", 9003, 10003, 11003, 8003} },
-        { "4", { "data/rover4.dat", 9004, 10004, 11004, 8004} },
-        { "5", { "data/rover5.dat", 9005, 10005, 11005, 8005} }
-    };
-}
-
-// Static member definitions
-std::map<int, RoverProfile> RoverProfiles::s_profiles;
-std::mutex RoverProfiles::s_mutex;
-bool RoverProfiles::s_initialized = false;
-
-bool RoverProfiles::initialize() {
-    std::lock_guard<std::mutex> lock(s_mutex);
-    
-    if (s_initialized) {
-        return true;
+    RoverProfileManager::RoverProfileManager() {
+        initializeDefaultProfiles();
     }
     
-    loadProfiles();
-    
-    if (s_profiles.empty()) {
-        std::cerr << "Error: No rover profiles loaded" << std::endl;
-        return false;
-    }
-    
-    if (!validateProfiles()) {
-        std::cerr << "Error: Invalid rover profile configuration" << std::endl;
-        return false;
-    }
-    
-    s_initialized = true;
-    return true;
-}
-
-int RoverProfiles::getRoverCount() {
-    std::lock_guard<std::mutex> lock(s_mutex);
-    return static_cast<int>(s_profiles.size());
-}
-
-const RoverProfile* RoverProfiles::getRoverProfile(int roverId) {
-    std::lock_guard<std::mutex> lock(s_mutex);
-    
-    auto it = s_profiles.find(roverId);
-    if (it != s_profiles.end()) {
-        return &it->second;
-    }
-    return nullptr;
-}
-
-bool RoverProfiles::validateProfiles() {
-    std::lock_guard<std::mutex> lock(s_mutex);
-    
-    if (s_profiles.empty()) {
-        return false;
-    }
-    
-    // Check each profile individually
-    for (const auto& pair : s_profiles) {
-        if (!validateProfile(pair.second)) {
-            std::cerr << "Invalid profile for rover " << pair.first << std::endl;
-            return false;
+    void RoverProfileManager::initializeDefaultProfiles() {
+        // Initialize rover profiles based on PRD port mapping specification
+        const std::array<std::string, 5> roverNames = {
+            "Rover Alpha", "Rover Beta", "Rover Gamma", "Rover Delta", "Rover Echo"
+        };
+        
+        for (uint8_t i = 1; i <= 5; ++i) {
+            RoverProfile profile;
+            profile.roverId = i;
+            profile.displayName = roverNames[i - 1];
+            
+            // Port mapping as specified in PRD
+            profile.ports.posePort = 9000 + i;      // 9001-9005
+            profile.ports.lidarPort = 10000 + i;    // 10001-10005
+            profile.ports.telemetryPort = 11000 + i; // 11001-11005
+            profile.ports.commandPort = 8000 + i;   // 8001-8005
+            
+            // Default IP address (localhost for development)
+            profile.ipAddress = "127.0.0.1";
+            
+            // Assign colors from Constants
+            if (i <= 5) {
+                for (int j = 0; j < 4; ++j) {
+                    profile.color[j] = Constants::Colors::ROVER_COLORS[i - 1][j];
+                }
+            }
+            
+            // All rovers start as active by default
+            profile.isActive = true;
+            
+            profiles_[i] = profile;
         }
     }
     
-    // Check for port conflicts
-    std::vector<int> allPorts;
-    for (const auto& pair : s_profiles) {
-        const RoverProfile& profile = pair.second;
-        allPorts.push_back(profile.posePort);
-        allPorts.push_back(profile.lidarPort);
-        allPorts.push_back(profile.telemPort);
-        allPorts.push_back(profile.cmdPort);
-    }
-    
-    std::sort(allPorts.begin(), allPorts.end());
-    auto it = std::adjacent_find(allPorts.begin(), allPorts.end());
-    if (it != allPorts.end()) {
-        std::cerr << "Error: Duplicate port " << *it << " found in rover profiles" << std::endl;
-        return false;
-    }
-    
-    return true;
-}
-
-bool RoverProfiles::isValidRoverId(int roverId) {
-    std::lock_guard<std::mutex> lock(s_mutex);
-    return s_profiles.find(roverId) != s_profiles.end();
-}
-
-bool RoverProfiles::isPortInUse(int port) {
-    std::lock_guard<std::mutex> lock(s_mutex);
-    
-    for (const auto& pair : s_profiles) {
-        const RoverProfile& profile = pair.second;
-        if (profile.posePort == port || profile.lidarPort == port || 
-            profile.telemPort == port || profile.cmdPort == port) {
-            return true;
+    void RoverProfileManager::validateRoverId(uint8_t roverId) const {
+        if (roverId < Constants::Rover::MIN_ROVER_ID || roverId > Constants::Rover::MAX_ROVER_ID) {
+            throw std::invalid_argument("Invalid rover ID: " + std::to_string(roverId));
         }
     }
-    return false;
-}
-
-std::vector<int> RoverProfiles::getAllRoverIds() {
-    std::lock_guard<std::mutex> lock(s_mutex);
     
-    std::vector<int> ids;
-    ids.reserve(s_profiles.size());
-    
-    for (const auto& pair : s_profiles) {
-        ids.push_back(pair.first);
+    const RoverProfile* RoverProfileManager::getRoverProfile(uint8_t roverId) const {
+        validateRoverId(roverId);
+        auto it = profiles_.find(roverId);
+        return (it != profiles_.end()) ? &it->second : nullptr;
     }
     
-    std::sort(ids.begin(), ids.end());
-    return ids;
-}
-
-void RoverProfiles::loadProfiles() {
-    // Convert the local rover profile map to our internal format
-    for (const auto& pair : g_emulator_rover_profiles) {
-        int roverId = std::stoi(pair.first);  // Convert string key to int
-        const auto& emulatorProfile = pair.second;
-        
-        RoverProfile profile;
-        profile.dataFile = emulatorProfile.dataFile;
-        profile.posePort = emulatorProfile.posePort;
-        profile.lidarPort = emulatorProfile.lidarPort;
-        profile.telemPort = emulatorProfile.telemPort;
-        profile.cmdPort = emulatorProfile.cmdPort;
-        
-        s_profiles[roverId] = profile;
+    RoverProfile* RoverProfileManager::getRoverProfile(uint8_t roverId) {
+        validateRoverId(roverId);
+        auto it = profiles_.find(roverId);
+        return (it != profiles_.end()) ? &it->second : nullptr;
     }
-}
-
-bool RoverProfiles::validateProfile(const RoverProfile& profile) {
-    // Check that data file path is not empty
-    if (profile.dataFile.empty()) {
+    
+    uint16_t RoverProfileManager::getPosePort(uint8_t roverId) const {
+        const RoverProfile* profile = getRoverProfile(roverId);
+        return profile ? profile->ports.posePort : 0;
+    }
+    
+    uint16_t RoverProfileManager::getLidarPort(uint8_t roverId) const {
+        const RoverProfile* profile = getRoverProfile(roverId);
+        return profile ? profile->ports.lidarPort : 0;
+    }
+    
+    uint16_t RoverProfileManager::getTelemetryPort(uint8_t roverId) const {
+        const RoverProfile* profile = getRoverProfile(roverId);
+        return profile ? profile->ports.telemetryPort : 0;
+    }
+    
+    uint16_t RoverProfileManager::getCommandPort(uint8_t roverId) const {
+        const RoverProfile* profile = getRoverProfile(roverId);
+        return profile ? profile->ports.commandPort : 0;
+    }
+    
+    bool RoverProfileManager::isValidRoverId(uint8_t roverId) const {
+        return (roverId >= Constants::Rover::MIN_ROVER_ID && 
+                roverId <= Constants::Rover::MAX_ROVER_ID &&
+                profiles_.find(roverId) != profiles_.end());
+    }
+    
+    void RoverProfileManager::setRoverActive(uint8_t roverId, bool active) {
+        RoverProfile* profile = getRoverProfile(roverId);
+        if (profile) {
+            profile->isActive = active;
+        }
+    }
+    
+    bool RoverProfileManager::isRoverActive(uint8_t roverId) const {
+        const RoverProfile* profile = getRoverProfile(roverId);
+        return profile ? profile->isActive : false;
+    }
+    
+    void RoverProfileManager::setRoverIPAddress(uint8_t roverId, const std::string& ipAddress) {
+        RoverProfile* profile = getRoverProfile(roverId);
+        if (profile) {
+            profile->ipAddress = ipAddress;
+        }
+    }
+    
+    std::string RoverProfileManager::getRoverIPAddress(uint8_t roverId) const {
+        const RoverProfile* profile = getRoverProfile(roverId);
+        return profile ? profile->ipAddress : "";
+    }
+    
+    std::array<uint8_t, 5> RoverProfileManager::getActiveRovers() const {
+        std::array<uint8_t, 5> activeRovers{};
+        size_t count = 0;
+        
+        for (const auto& pair : profiles_) {
+            if (pair.second.isActive && count < 5) {
+                activeRovers[count++] = pair.first;
+            }
+        }
+        
+        return activeRovers;
+    }
+    
+    size_t RoverProfileManager::getActiveRoverCount() const {
+        return std::count_if(profiles_.begin(), profiles_.end(),
+                           [](const auto& pair) { return pair.second.isActive; });
+    }
+    
+    void RoverProfileManager::enableAllRovers() {
+        for (auto& pair : profiles_) {
+            pair.second.isActive = true;
+        }
+    }
+    
+    void RoverProfileManager::disableAllRovers() {
+        for (auto& pair : profiles_) {
+            pair.second.isActive = false;
+        }
+    }
+    
+    bool RoverProfileManager::isPortInUse(uint16_t port) const {
+        for (const auto& pair : profiles_) {
+            const RoverPorts& ports = pair.second.ports;
+            if (ports.posePort == port || ports.lidarPort == port ||
+                ports.telemetryPort == port || ports.commandPort == port) {
+                return true;
+            }
+        }
         return false;
     }
     
-    // Check that all ports are in valid range (1024-65535)
-    const int MIN_PORT = 1024;
-    const int MAX_PORT = 65535;
-    
-    if (profile.posePort < MIN_PORT || profile.posePort > MAX_PORT ||
-        profile.lidarPort < MIN_PORT || profile.lidarPort > MAX_PORT ||
-        profile.telemPort < MIN_PORT || profile.telemPort > MAX_PORT ||
-        profile.cmdPort < MIN_PORT || profile.cmdPort > MAX_PORT) {
-        return false;
+    std::vector<uint16_t> RoverProfileManager::getAllUsedPorts() const {
+        std::vector<uint16_t> usedPorts;
+        usedPorts.reserve(profiles_.size() * 4); // 4 ports per rover
+        
+        for (const auto& pair : profiles_) {
+            const RoverPorts& ports = pair.second.ports;
+            usedPorts.push_back(ports.posePort);
+            usedPorts.push_back(ports.lidarPort);
+            usedPorts.push_back(ports.telemetryPort);
+            usedPorts.push_back(ports.commandPort);
+        }
+        
+        return usedPorts;
     }
     
-    // Check that all ports within a profile are unique
-    std::vector<int> ports = {profile.posePort, profile.lidarPort, 
-                              profile.telemPort, profile.cmdPort};
-    std::sort(ports.begin(), ports.end());
-    auto it = std::adjacent_find(ports.begin(), ports.end());
-    if (it != ports.end()) {
-        return false;  // Duplicate port within this profile
+    // Global instance management
+    RoverProfileManager& getInstance() {
+        static RoverProfileManager instance;
+        return instance;
     }
     
-    return true;
-}
+    // Convenience functions for direct access
+    const RoverProfile* getRover(uint8_t roverId) {
+        return getInstance().getRoverProfile(roverId);
+    }
+    
+    uint16_t getPosePort(uint8_t roverId) {
+        return getInstance().getPosePort(roverId);
+    }
+    
+    uint16_t getLidarPort(uint8_t roverId) {
+        return getInstance().getLidarPort(roverId);
+    }
+    
+    uint16_t getTelemetryPort(uint8_t roverId) {
+        return getInstance().getTelemetryPort(roverId);
+    }
+    
+    uint16_t getCommandPort(uint8_t roverId) {
+        return getInstance().getCommandPort(roverId);
+    }
+    
+    bool isValidRover(uint8_t roverId) {
+        return getInstance().isValidRoverId(roverId);
+    }
+    
+} // namespace RoverProfiles

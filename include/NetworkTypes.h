@@ -1,136 +1,70 @@
-#ifndef NETWORK_TYPES_H
-#define NETWORK_TYPES_H
+#pragma once
 
 #include <cstdint>
-#include <vector>
-#include <algorithm>
 
-// Maximum number of LiDAR points that can fit in a single UDP packet
-static constexpr size_t MAX_LIDAR_POINTS_PER_PACKET = 100;
+// Network packet structures for Multi-Rover LiDAR Visualization
+// All structures are packed for UDP transmission compatibility
 
-// Define packed WIRE structs used for network I/O only
 #pragma pack(push, 1)
-struct WirePosePacket {
-    double timestamp;
-    float posX;
-    float posY;
-    float posZ;
-    float rotXdeg;
-    float rotYdeg;
-    float rotZdeg;
-};
 
-struct WireLidarPacketHeader {
-    double timestamp;
-    uint32_t chunkIndex;
-    uint32_t totalChunks;
-    uint32_t pointsInThisChunk;
-};
-
-struct WireLidarPoint {
-    float x;
-    float y;
-    float z;
-};
-
-struct WireLidarPacket {
-    WireLidarPacketHeader header;
-    WireLidarPoint points[MAX_LIDAR_POINTS_PER_PACKET];
-};
-
-struct WireVehicleTelem {
-    double timestamp;
-    uint8_t buttonStates;
-};
-
-struct WireButtonCommand {
-    uint8_t buttonMask;
-};
-#pragma pack(pop)
-
-// Native (aligned) structs used throughout the application
+/**
+ * Pose data packet containing rover position and orientation
+ */
 struct PosePacket {
-    double timestamp;
-    float posX;
-    float posY;
-    float posZ;
-    float rotXdeg;
-    float rotYdeg;
-    float rotZdeg;
+    double timestamp;       // Unix timestamp in seconds
+    float posX, posY, posZ; // Position in meters (world coordinates)
+    float rotXdeg, rotYdeg, rotZdeg; // Rotation in degrees (Euler angles)
 };
 
+/**
+ * Header for LiDAR data packets
+ * LiDAR data is transmitted in chunks due to UDP size limitations
+ */
 struct LidarPacketHeader {
-    double timestamp;
-    uint32_t chunkIndex;
-    uint32_t totalChunks;
-    uint32_t pointsInThisChunk;
+    double timestamp;           // Unix timestamp in seconds
+    uint32_t chunkIndex;        // Index of this chunk (0-based)
+    uint32_t totalChunks;       // Total number of chunks for this scan
+    uint32_t pointsInThisChunk; // Number of points in this specific chunk
 };
 
+/**
+ * Individual LiDAR point in 3D space
+ */
 struct LidarPoint {
-    float x;
-    float y;
-    float z;
+    float x, y, z; // Position in meters (rover-relative coordinates)
 };
 
+/**
+ * Complete LiDAR packet containing header and point data
+ * Maximum 100 points per packet as specified in PRD
+ */
 struct LidarPacket {
     LidarPacketHeader header;
-    LidarPoint points[MAX_LIDAR_POINTS_PER_PACKET];
+    LidarPoint points[100]; // Fixed-size array for consistent packet size
 };
 
+/**
+ * Vehicle telemetry packet containing button states
+ */
 struct VehicleTelem {
-    double timestamp;
-    uint8_t buttonStates;
-};
-
-struct ButtonCommand {
-    uint8_t buttonMask;
+    double timestamp;       // Unix timestamp in seconds
+    uint8_t buttonStates;   // Bitfield representing button states (8 buttons max)
 };
 
 /**
- * Network packet types for identification
+ * Command packet for sending instructions to rovers
  */
-enum class PacketType {
-    POSE,
-    LIDAR,
-    TELEMETRY,
-    COMMAND
+struct CommandPacket {
+    double timestamp;       // Unix timestamp in seconds
+    uint8_t commandType;    // Type of command being sent
+    uint8_t commandData[7]; // Command-specific data (pad to 8 bytes total)
 };
 
-/**
- * Network statistics structure for diagnostics
- */
-struct NetworkStats {
-    double lastPacketTime;      // Last packet timestamp
-    uint64_t totalPackets;      // Total packets received
-    uint64_t lostPackets;       // Estimated lost packets
-    double packetLossRate;      // Packet loss rate (0.0 - 1.0)
-    double latency;             // Average latency in milliseconds
-    uint64_t bytesReceived;     // Total bytes received
-};
+#pragma pack(pop)
 
-/**
- * LiDAR assembly state for tracking incomplete scans
- */
-struct LidarAssemblyState {
-    double timestamp;                           // Scan timestamp
-    uint32_t totalChunks;                      // Expected total chunks
-    uint32_t receivedChunks;                   // Number of chunks received
-    bool chunkReceived[256];                   // Track which chunks received (max 256)
-    std::vector<LidarPoint> points;            // Accumulated points
-    double firstChunkTime;                     // Time first chunk was received
-    
-    LidarAssemblyState() : timestamp(0), totalChunks(0), receivedChunks(0), 
-                          firstChunkTime(0) {
-        std::fill(chunkReceived, chunkReceived + 256, false);
-    }
-    
-    bool isComplete() const {
-        return receivedChunks == totalChunks && totalChunks > 0;
-    }
-    
-    bool isExpired(double currentTime, double timeoutMs = 200.0) const {
-        return (currentTime - firstChunkTime) > (timeoutMs / 1000.0);
-    }
-};
-
-#endif // NETWORK_TYPES_H
+// Network protocol constants
+namespace NetworkConstants {
+    constexpr size_t MAX_LIDAR_POINTS_PER_PACKET = 100;
+    constexpr size_t MAX_UDP_PAYLOAD_SIZE = sizeof(LidarPacket);
+    constexpr uint16_t PROTOCOL_VERSION = 1;
+}
