@@ -274,4 +274,31 @@ std::vector<TileUpdate> ElevationMap::consumeDirtyTilesBudgeted(size_t maxBytes)
     return updates;
 }
 
+bool ElevationMap::getGroundAt(float x, float z, float* outY, uint16_t* outN) const {
+    if (!outY) return false;
+    int tx = static_cast<int>(std::floor(x / tileSize));
+    int tz = static_cast<int>(std::floor(z / tileSize));
+    TileKey key{tx, tz};
+    auto it = tiles.find(key);
+    if (it == tiles.end() || !it->second.root) return false;
+    const Tile& t = it->second;
+    const QuadNode* node = t.root.get();
+    float cx = t.originX + t.size * 0.5f;
+    float cz = t.originZ + t.size * 0.5f;
+    float half = t.size * 0.5f;
+    for (int depth = 0; depth < t.maxDepth - 1 && node && !node->isLeaf; ++depth) {
+        int idx = (x >= cx ? 1 : 0) + (z >= cz ? 2 : 0);
+        half *= 0.5f;
+        cx += (idx == 1 || idx == 3) ? half : -half;
+        cz += (idx >= 2) ? half : -half;
+        node = node->children[idx].get();
+    }
+    if (!node) return false;
+    const ElevCell& c = node->cell;
+    if (!c.valid) return false;
+    *outY = c.z_mean;
+    if (outN) *outN = c.n;
+    return c.n >= Nconf;
+}
+
 

@@ -79,9 +79,9 @@ uniform vec3 uLightDir;
 void main(){
   vec3 n = normalize(vNormal);
   float ndl = max(dot(n, -normalize(uLightDir)), 0.0);
-  float a = 0.35;
-  float d = 0.65 * ndl;
-  vec3 base = vec3(0.35,0.45,0.35);
+  float a = 0.55;              // brighter ambient for visibility
+  float d = 0.50 * ndl;        // slightly softer diffuse
+  vec3 base = vec3(0.42,0.55,0.42); // lighter green
   FragColor = vec4(base*(a+d), 1.0);
 }
 )GLSL";
@@ -153,6 +153,7 @@ bool Renderer::init(){
   }
   glEnable(GL_PROGRAM_POINT_SIZE);
   glEnable(GL_DEPTH_TEST);
+  glEnable(GL_MULTISAMPLE);
 
   // Create a unit cube mesh centered at origin with normals
   // 24 unique vertices (4 per face) to get sharp edges with per-face normals
@@ -232,13 +233,17 @@ void Renderer::setRoverColor(const std::string& roverId, const glm::vec3& color)
   rovers[roverId].color = color;
 }
 
+void Renderer::setRoverModelOffset(const std::string& roverId, const glm::vec3& localOffsetRUF){
+  rovers[roverId].modelOffsetLocal = localOffsetRUF;
+}
+
 void Renderer::setViewProjection(const glm::mat4& view, const glm::mat4& proj){
   viewM = view; projM = proj;
 }
 
 void Renderer::renderFrame(const std::vector<LidarPoint>& globalTerrain, float /*fps*/, int /*totalPoints*/){
   glViewport(0, 0, viewportWidth, viewportHeight);
-  glClearColor(0.05f, 0.06f, 0.07f, 1.0f);
+  glClearColor(0.03f, 0.035f, 0.04f, 1.0f); // deeper background for contrast
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   // Draw terrain if any
@@ -265,8 +270,8 @@ void Renderer::renderFrame(const std::vector<LidarPoint>& globalTerrain, float /
   glBindBuffer(GL_ARRAY_BUFFER, pointVbo);
   if (!globalTerrain.empty()) {
     glBufferData(GL_ARRAY_BUFFER, globalTerrain.size() * sizeof(LidarPoint), globalTerrain.data(), GL_DYNAMIC_DRAW);
-    glUniform1f(locS, 2.0f);
-    glUniform3f(locC, 0.8f, 0.9f, 1.0f);
+    glUniform1f(locS, 3.5f);              // bigger points
+    glUniform3f(locC, 0.95f, 0.98f, 1.0f); // brighter color
     glUniform1i(locUse, 0);
     glDrawArrays(GL_POINTS, 0, static_cast<int>(globalTerrain.size()));
   }
@@ -274,6 +279,12 @@ void Renderer::renderFrame(const std::vector<LidarPoint>& globalTerrain, float /
 
   // Helper to estimate local ground Y from nearby LiDAR points
   auto estimateGroundY = [&](const glm::vec3& posXZ) -> float {
+    // Prefer elevation map via groundSampler if available
+    if (groundSampler) {
+      float y = posXZ.y; uint16_t n = 0;
+      bool ok = groundSampler(posXZ.x, posXZ.z, y, n);
+      if (ok) return y;
+    }
     if (globalTerrain.empty()) return posXZ.y;
     const float radius1 = 3.0f;
     const float radius2 = 6.0f;
@@ -302,7 +313,7 @@ void Renderer::renderFrame(const std::vector<LidarPoint>& globalTerrain, float /
     return ground;
   };
 
-  // Draw each rover as a larger cube placed slightly above the ground, with a red nose
+  // Draw each rover as a larger cube placed slightly above the ground, oriented to terrain normal, with a red nose
   if (!rovers.empty()) {
     glBindVertexArray(roverMeshVao);
     for (const auto& kv : rovers) {
@@ -317,10 +328,45 @@ void Renderer::renderFrame(const std::vector<LidarPoint>& globalTerrain, float /
       float hover = 0.5f * baseScale.y; // slight lift
       center.y = ground + 0.5f * baseScale.y + hover;
 
+      // Sample terrain to compute local normal
+      glm::vec3 up(0.0f, 1.0f, 0.0f);
+      glm::vec3 n = up;
+      bool haveNormal = false;
+      if (groundSampler) {
+        float step = 0.75f; // meters
+        float yL, yR, yD, yU; uint16_t tmp;
+        bool okL = groundSampler(center.x - step, center.z, yL, tmp);
+        bool okR = groundSampler(center.x + step, center.z, yR, tmp);
+        bool okD = groundSampler(center.x, center.z - step, yD, tmp);
+        bool okU = groundSampler(center.x, center.z + step, yU, tmp);
+        if (okL && okR && okD && okU) {
+          float dYdX = (yR - yL) / (2.0f * step);
+          float dYdZ = (yU - yD) / (2.0f * step);
+          n = glm::normalize(glm::vec3(-dYdX, 1.0f, -dYdZ));
+          haveNormal = true;
+        }
+      }
+      if (!haveNormal) n = up;
+
+      // Build orientation that preserves yaw around the terrain normal
+      glm::vec3 fwd = glm::normalize(glm::vec3(sinf(yawRad), 0.0f, cosf(yawRad)));
+      glm::vec3 fwdT = glm::normalize(fwd - glm::dot(fwd, n) * n);
+      if (!std::isfinite(fwdT.x)) fwdT = glm::normalize(glm::cross(n, glm::vec3(1,0,0)));
+      if (glm::length(fwdT) < 1e-3f) fwdT = glm::normalize(glm::cross(n, glm::vec3(0,0,1)));
+      glm::vec3 right = glm::normalize(glm::cross(fwdT, n));
+
       // Body
       glm::mat4 model(1.0f);
       model = glm::translate(model, center);
-      model = glm::rotate(model, yawRad, glm::vec3(0.0f, 1.0f, 0.0f));
+      // orientation basis (columns)
+      glm::mat4 basis(1.0f);
+      basis[0] = glm::vec4(right, 0.0f);
+      basis[1] = glm::vec4(n, 0.0f);
+      basis[2] = glm::vec4(fwdT, 0.0f);
+      // apply local model offset (Right, Up, Forward) in aligned basis
+      glm::vec3 off = rovers.at(kv.first).modelOffsetLocal;
+      glm::vec3 worldOff = right * off.x + n * off.y + fwdT * off.z;
+      model = glm::translate(model, worldOff) * basis;
       model = glm::scale(model, baseScale);
       glUniformMatrix4fv(locM, 1, GL_FALSE, glm::value_ptr(model));
       glUniform3f(locC, st.color.r, st.color.g, st.color.b);
@@ -328,13 +374,15 @@ void Renderer::renderFrame(const std::vector<LidarPoint>& globalTerrain, float /
       glDrawElements(GL_TRIANGLES, roverMeshIndexCount, GL_UNSIGNED_SHORT, 0);
 
       // Nose marker on roof to indicate heading (use +Z forward when yaw=0)
-      glm::vec3 fwd = glm::normalize(glm::vec3(sinf(yawRad), 0.0f, cosf(yawRad)));
-      glm::vec3 up(0.0f, 1.0f, 0.0f);
       glm::vec3 roof = center + up * (0.5f * baseScale.y);
-      glm::vec3 noseWorld = roof + fwd * (0.55f * baseScale.z);
+      glm::vec3 noseWorld = roof + fwdT * (0.55f * baseScale.z);
       glm::mat4 nose(1.0f);
       nose = glm::translate(nose, noseWorld);
-      nose = glm::rotate(nose, yawRad, glm::vec3(0.0f, 1.0f, 0.0f));
+      glm::mat4 nbasis(1.0f);
+      nbasis[0] = glm::vec4(right, 0.0f);
+      nbasis[1] = glm::vec4(n, 0.0f);
+      nbasis[2] = glm::vec4(fwdT, 0.0f);
+      nose = nose * nbasis;
       nose = glm::scale(nose, glm::vec3(0.3f, 0.2f, 0.5f));
       glUniformMatrix4fv(locM, 1, GL_FALSE, glm::value_ptr(nose));
       glUniform3f(locC, 1.0f, 0.25f, 0.25f);
@@ -352,8 +400,23 @@ void Renderer::renderFrame(const std::vector<LidarPoint>& globalTerrain, float /
       const auto& st = kv.second;
       const glm::vec3 baseScale = glm::vec3(3.2f, 1.4f, 2.4f);
       float yawRad = glm::radians(st.rotationDeg.y);
-      glm::vec3 dir = glm::normalize(glm::vec3(sinf(yawRad), 0.0f, cosf(yawRad))); // +Z when yaw=0
+      // Recompute slope-aligned forward
       glm::vec3 up(0.0f, 1.0f, 0.0f);
+      glm::vec3 n = up;
+      if (groundSampler) {
+        float step = 0.75f; float yL,yR,yD,yU; uint16_t tmp;
+        bool okL = groundSampler(st.position.x - step, st.position.z, yL, tmp);
+        bool okR = groundSampler(st.position.x + step, st.position.z, yR, tmp);
+        bool okD = groundSampler(st.position.x, st.position.z - step, yD, tmp);
+        bool okU = groundSampler(st.position.x, st.position.z + step, yU, tmp);
+        if (okL && okR && okD && okU) {
+          float dYdX = (yR - yL) / (2.0f * step);
+          float dYdZ = (yU - yD) / (2.0f * step);
+          n = glm::normalize(glm::vec3(-dYdX, 1.0f, -dYdZ));
+        }
+      }
+      glm::vec3 fwd = glm::normalize(glm::vec3(sinf(yawRad), 0.0f, cosf(yawRad)));
+      glm::vec3 dir = glm::normalize(fwd - glm::dot(fwd, n) * n);
       glm::vec3 center = st.position;
       float ground = estimateGroundY(st.position);
       float hover = 0.15f * baseScale.y;

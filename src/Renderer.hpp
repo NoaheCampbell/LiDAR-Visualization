@@ -12,6 +12,8 @@ struct RoverVisualState {
     glm::vec3 position {0.0f};
     glm::vec3 rotationDeg {0.0f};
     glm::vec3 color {1.0f, 1.0f, 1.0f};
+    // Local-space offset (right, up, forward) meters, applied after terrain alignment
+    glm::vec3 modelOffsetLocal {0.0f, 0.0f, 0.0f};
 };
 
 class Renderer {
@@ -23,12 +25,15 @@ public:
 
     void updateRoverState(const std::string& roverId, const PosePacket& pose);
     void setRoverColor(const std::string& roverId, const glm::vec3& color);
+    void setRoverModelOffset(const std::string& roverId, const glm::vec3& localOffsetRUF);
 
     void setViewProjection(const glm::mat4& view, const glm::mat4& proj);
 
     void renderFrame(const std::vector<LidarPoint>& globalTerrain,
                      float fps,
                      int totalPoints);
+    void setTerrainDrawDistance(float meters) { terrainDrawDistance = meters; }
+    float getTerrainDrawDistance() const { return terrainDrawDistance; }
 
     // Heightmap tile uploads and rendering
     void ensureTerrainPipeline(int gridNVertices);
@@ -52,12 +57,19 @@ private:
 
     int viewportWidth = 1280;
     int viewportHeight = 720;
+    float terrainDrawDistance = 1200.0f;
 
     std::map<std::string, RoverVisualState> rovers;
 
     unsigned int createShaderProgram();
     glm::mat4 viewM {1.0f};
     glm::mat4 projM {1.0f};
+
+public:
+    // Provide elevation map sampling hook for grounding
+    void setGroundSampler(std::function<bool(float,float,float&,uint16_t&)> sampler) { groundSampler = std::move(sampler); }
+private:
+    std::function<bool(float,float,float&,uint16_t&)> groundSampler;
 
     // Terrain grid
     struct TileGpu {
@@ -75,7 +87,6 @@ private:
     int terrainGridN = 0;
 
     // Simple culling and overlay controls (tuned for perf)
-    float terrainDrawDistance = 300.0f; // meters
     bool renderPoints = false; // disabled by default when terrain is on
 };
 

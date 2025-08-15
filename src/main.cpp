@@ -98,6 +98,11 @@ int main() {
 
     net.start(posePorts, lidarPorts, telemPorts);
 
+    // Provide renderer a ground sampler backed by elevation map (z_mean). Use only when confident.
+    renderer.setGroundSampler([&](float x, float z, float& outY, uint16_t& outN){
+        return elevMap.getGroundAt(x, z, &outY, &outN);
+    });
+
     auto last = std::chrono::high_resolution_clock::now();
     float fps = 0.0f;
     // Sliding-window FPS average
@@ -114,6 +119,8 @@ int main() {
     int colorIdx = 0;
     for (const auto& [id, _] : profiles) {
         renderer.setRoverColor(id, palette[colorIdx % palette.size()]);
+        // Default forward offset of +1.0 m to account for sensor-vs-body origin
+        renderer.setRoverModelOffset(id, glm::vec3(0.0f, 0.0f, 1.0f));
         ++colorIdx;
     }
     float fovDeg = 60.0f;
@@ -133,6 +140,9 @@ int main() {
     bool invertYAxis = false;
     bool mouseLook = false;
     double lastMouseX = 0.0, lastMouseY = 0.0;
+    bool centerKeyDownPrev = false; // for edge-triggered 'C' center action
+    bool pendingCenter = false;     // apply centering after camera logic
+    bool suppressFollowOnce = false; // skip one follow update after centering
 
     std::string selectedRover = profiles.begin()->first;
 
@@ -175,9 +185,31 @@ int main() {
         // Unified Control Panel
         ImGui::Begin("Control Panel");
         if (ImGui::CollapsingHeader("Rover Selector", ImGuiTreeNodeFlags_DefaultOpen)) {
+            // Horizontal buttons 1..N
+            int idx = 0;
             for (const auto& [id, _] : profiles) {
                 bool isSel = (id == selectedRover);
-                if (ImGui::Selectable(id.c_str(), isSel)) selectedRover = id;
+                if (isSel) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f,0.45f,0.80f,1.0f));
+                std::string label = id; // show ID as label
+                if (ImGui::Button(label.c_str(), ImVec2(40, 0))) {
+                    selectedRover = id;
+                }
+                if (isSel) ImGui::PopStyleColor();
+                ++idx;
+                if (idx < (int)profiles.size()) ImGui::SameLine();
+            }
+            // Number key shortcuts 1..5 (or up to number of rovers)
+            ImGuiIO& io = ImGui::GetIO();
+            if (!io.WantCaptureKeyboard) {
+                int keyIndex = -1;
+                if (ImGui::IsKeyPressed(ImGuiKey_1, false)) keyIndex = 0;
+                else if (ImGui::IsKeyPressed(ImGuiKey_2, false)) keyIndex = 1;
+                else if (ImGui::IsKeyPressed(ImGuiKey_3, false)) keyIndex = 2;
+                else if (ImGui::IsKeyPressed(ImGuiKey_4, false)) keyIndex = 3;
+                else if (ImGui::IsKeyPressed(ImGuiKey_5, false)) keyIndex = 4;
+                if (keyIndex >= 0) {
+                    int i = 0; for (const auto& [id, _] : profiles) { if (i == keyIndex) { selectedRover = id; break; } ++i; }
+                }
             }
             ImGui::Separator();
         }
@@ -216,6 +248,12 @@ int main() {
         ImGui::Text("Last Telem ts: %.3f", ts.lastTelemTs);
         ImGui::Text("FPS (avg %.1fs): %.1f", fpsWindowSeconds, fps);
         ImGui::Text("Points: %zu", assembler.getGlobalTerrain().size());
+        {
+            float tdd = renderer.getTerrainDrawDistance();
+            if (ImGui::SliderFloat("Terrain draw distance", &tdd, 200.0f, 3000.0f)) {
+                renderer.setTerrainDrawDistance(tdd);
+            }
+        }
             ImGui::Separator();
         }
 
@@ -225,9 +263,9 @@ int main() {
         ImGui::SliderFloat3("Position", &camPos.x, -100.0f, 100.0f);
         ImGui::SliderFloat3("Target", &camTarget.x, -100.0f, 100.0f);
         ImGui::SliderFloat("FOV", &fovDeg, 20.0f, 120.0f);
-        ImGui::Checkbox("Follow selected rover", &followSelected);
-        ImGui::SameLine();
+        // Single toggle: when disabled, auto-follow is active
         ImGui::Checkbox("Free-fly (WASD + mouse)", &freeFly);
+        followSelected = !freeFly;
         ImGui::SliderFloat3("Follow offset", &followOffset.x, -200.0f, 200.0f);
         if (freeFly) {
             ImGui::SliderFloat("Fly speed", &flySpeed, 1.0f, 100.0f);
@@ -237,9 +275,8 @@ int main() {
             ImGui::Checkbox("Invert Y axis", &invertYAxis);
         }
         if (ImGui::Button("Center on selected (C)")) {
-            const auto& p = roverState[selectedRover].lastPose;
-            camTarget = {p.posX, p.posY, p.posZ};
-            camPos = camTarget + followOffset;
+            pendingCenter = true;
+            suppressFollowOnce = true;
         }
         }
         ImGui::End();
@@ -255,6 +292,8 @@ int main() {
             orbitYawDeg = yawFromOffset * 180.0f / 3.14159265f;
             orbitPitchDeg = pitchFromOffset * 180.0f / 3.14159265f;
         }
+        // Derive follow state from freeFly
+        followSelected = !freeFly;
         // Input for free-fly or follow-orbit rotation
         if (freeFly) {
             ImGuiIO& io = ImGui::GetIO();
@@ -296,7 +335,7 @@ int main() {
             if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) camPos += up * move;
             camTarget = camPos + forward * 10.0f;
             followSelected = false;
-        } else if (followSelected) {
+        } else if (followSelected && !suppressFollowOnce) {
             // Allow orbit camera rotation while following the rover
             ImGuiIO& io = ImGui::GetIO();
             bool rotateBtn = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS ||
@@ -333,17 +372,47 @@ int main() {
             followOffset.z = followRadius * cosf(pitchRad) * sinf(yawRad);
         }
         // Follow mode updates
-        if (followSelected && !freeFly) {
+        if (followSelected && !freeFly && !suppressFollowOnce) {
             const auto& p = roverState[selectedRover].lastPose;
-            glm::vec3 tgt = {p.posX, p.posY, p.posZ};
-            camTarget = tgt;
-            camPos = tgt + followOffset;
+            float gy = p.posY; uint16_t gn = 0;
+            if (elevMap.getGroundAt(p.posX, p.posZ, &gy, &gn)) {
+                glm::vec3 tgt = {p.posX, gy + 0.8f, p.posZ};
+                camTarget = tgt;
+                camPos = tgt + followOffset;
+            } else {
+                glm::vec3 tgt = {p.posX, p.posY, p.posZ};
+                camTarget = tgt;
+                camPos = tgt + followOffset;
+            }
         }
-        // Keyboard center hotkey
-        if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
+        // Keyboard center hotkey (edge-triggered) -> set pending flag
+        {
+            bool cDown = glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS;
+            if (cDown && !centerKeyDownPrev) { pendingCenter = true; suppressFollowOnce = true; }
+            centerKeyDownPrev = cDown;
+        }
+
+        // Apply pending center AFTER follow/free-fly camera updates to avoid flicker
+        if (pendingCenter) {
             const auto& p = roverState[selectedRover].lastPose;
-            camTarget = {p.posX, p.posY, p.posZ};
+            float gy = p.posY; uint16_t gn = 0;
+            if (elevMap.getGroundAt(p.posX, p.posZ, &gy, &gn)) {
+                camTarget = {p.posX, gy + 0.8f, p.posZ};
+            } else {
+                camTarget = {p.posX, p.posY, p.posZ};
+            }
             camPos = camTarget + followOffset;
+            // If in free-fly, align yaw/pitch so forward looks at the rover
+            if (freeFly) {
+                glm::vec3 dir = glm::normalize(camTarget - camPos);
+                float newYawDeg = atan2f(dir.z, dir.x) * 180.0f / 3.14159265f;
+                float newPitchDeg = asinf(std::max(-1.0f, std::min(1.0f, dir.y))) * 180.0f / 3.14159265f;
+                yawDeg = newYawDeg;
+                pitchDeg = newPitchDeg;
+                if (pitchDeg > 89.0f) pitchDeg = 89.0f; if (pitchDeg < -89.0f) pitchDeg = -89.0f;
+            }
+            pendingCenter = false;
+            suppressFollowOnce = false;
         }
         glm::mat4 proj = glm::perspective(glm::radians(fovDeg), aspect, 0.1f, 500.0f);
         glm::mat4 view = glm::lookAt(camPos, camTarget, worldUp);

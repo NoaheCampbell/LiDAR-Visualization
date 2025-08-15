@@ -106,6 +106,10 @@ public:
     int getGridNVertices() const { return gridNVertices; }
     float getTileSize() const { return tileSize; }
 
+    // Query the ground height at (x,z). Returns true if a valid cell exists and
+    // its sample count is considered confident (n >= Nconf).
+    bool getGroundAt(float x, float z, float* outY, uint16_t* outN = nullptr) const;
+
 private:
     float tileSize = 32.0f;
     float baseCellRes = 0.25f;
