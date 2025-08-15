@@ -15,7 +15,7 @@
 ########################
 
 //Build the rover emulator
-BUILD_EMULATOR:BOOL=ON
+BUILD_EMULATOR:BOOL=OFF
 
 //Build shared libraries
 BUILD_SHARED_LIBS:BOOL=OFF

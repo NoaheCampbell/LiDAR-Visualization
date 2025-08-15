@@ -3,6 +3,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/lidar_viewer.dir/src/DataAssembler.cpp.o.d"
   "CMakeFiles/lidar_viewer.dir/src/NetworkManager.cpp.o"
   "CMakeFiles/lidar_viewer.dir/src/NetworkManager.cpp.o.d"
+  "CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.o"
+  "CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.o.d"
   "CMakeFiles/lidar_viewer.dir/src/Renderer.cpp.o"
   "CMakeFiles/lidar_viewer.dir/src/Renderer.cpp.o.d"
   "CMakeFiles/lidar_viewer.dir/src/main.cpp.o"

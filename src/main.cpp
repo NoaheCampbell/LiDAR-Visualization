@@ -11,6 +11,7 @@
 
 #include <chrono>
 #include <map>
+#include <deque>
 #include <string>
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -19,6 +20,7 @@
 #include "NetworkManager.hpp"
 #include "DataAssembler.hpp"
 #include "Renderer.hpp"
+#include "QuadtreeMap.hpp"
 
 struct RoverState {
     PosePacket lastPose{};
@@ -71,7 +73,9 @@ int main() {
 
     NetworkManager net;
     DataAssembler assembler;
-    assembler.setMaxPoints(2'000'000);
+    ElevationMap elevMap;
+    // Do not store raw points; elevation map is our primary product
+    assembler.setStoreGlobalPoints(false);
 
     std::map<std::string, int> posePorts, lidarPorts, telemPorts, cmdPorts;
     for (const auto& [id, p] : profiles) {
@@ -96,6 +100,10 @@ int main() {
 
     auto last = std::chrono::high_resolution_clock::now();
     float fps = 0.0f;
+    // Sliding-window FPS average
+    std::deque<float> fpsWindow; // store recent frame durations (seconds)
+    float fpsSum = 0.0f;         // sum of durations in window
+    const float fpsWindowSeconds = 1.5f; // average over last ~1.5s
     // Simple free-fly camera params
     glm::vec3 camPos = {10.0f, 10.0f, 10.0f};
     glm::vec3 camTarget = {0.0f, 0.0f, 0.0f};
@@ -112,6 +120,10 @@ int main() {
     bool followSelected = true;
     bool freeFly = false;
     glm::vec3 followOffset = {30.0f, 30.0f, 20.0f};
+    // Orbit controls for follow camera
+    float orbitYawDeg = -45.0f;   // rotation around Y
+    float orbitPitchDeg = -25.0f; // tilt up/down
+    float followRadius = 0.0f;
     // Coordinate system up-axis (set to Y-up to match emulator data)
     const glm::vec3 worldUp = {0.0f, 1.0f, 0.0f};
     // Free-fly camera state
@@ -133,12 +145,27 @@ int main() {
         auto now = std::chrono::high_resolution_clock::now();
         float dt = std::chrono::duration<float>(now - last).count();
         last = now;
-        fps = (dt > 0.0f) ? (1.0f / dt) : fps;
+        // Update FPS moving average window
+        fpsWindow.push_back(dt);
+        fpsSum += dt;
+        while (fpsSum > fpsWindowSeconds && fpsWindow.size() > 1) {
+            fpsSum -= fpsWindow.front();
+            fpsWindow.pop_front();
+        }
+        float fpsAvg = (fpsSum > 1e-6f) ? (static_cast<float>(fpsWindow.size()) / fpsSum) : fps;
+        fps = fpsAvg;
 
         // Data maintenance
         assembler.maintenance(0.0);
         auto scans = assembler.retrieveCompleted();
-        (void)scans;
+        // Integrate completed scans into elevation map
+        for (const auto& sc : scans) {
+            elevMap.integrateScan(sc.points, sc.timestamp);
+        }
+        // Upload dirty tiles to GPU on a budget (~10 MB per frame)
+        renderer.ensureTerrainPipeline(elevMap.getGridNVertices());
+        auto updates = elevMap.consumeDirtyTilesBudgeted(10 * 1024 * 1024);
+        renderer.uploadDirtyTiles(updates);
 
         // UI frame
         ImGui_ImplOpenGL3_NewFrame();
@@ -187,91 +214,12 @@ int main() {
         ImGui::Text("Last Pose ts: %.3f", ts.lastPoseTs);
         ImGui::Text("Last Lidar ts: %.3f", ts.lastLidarTs);
         ImGui::Text("Last Telem ts: %.3f", ts.lastTelemTs);
-        ImGui::Text("FPS: %.1f", fps);
+        ImGui::Text("FPS (avg %.1fs): %.1f", fpsWindowSeconds, fps);
         ImGui::Text("Points: %zu", assembler.getGlobalTerrain().size());
             ImGui::Separator();
         }
 
-        if (ImGui::CollapsingHeader("Mini-map", ImGuiTreeNodeFlags_DefaultOpen)) {
-            const float mapSize = 220.0f;
-            const float padFrac = 0.10f; // 10% padding around extents
-            ImVec2 p0 = ImGui::GetCursorScreenPos();
-            ImDrawList* dl = ImGui::GetWindowDrawList();
-            dl->AddRectFilled(p0, ImVec2(p0.x + mapSize, p0.y + mapSize), IM_COL32(20, 20, 20, 255));
-            dl->AddRect(p0, ImVec2(p0.x + mapSize, p0.y + mapSize), IM_COL32(80, 80, 80, 255));
-
-            // Compute dynamic bounds from rover positions
-            float minX = FLT_MAX, maxX = -FLT_MAX, minYp = FLT_MAX, maxYp = -FLT_MAX;
-            for (const auto& [id, st] : roverState) {
-                float px = st.lastPose.posX;
-                float py = (worldUp.y > 0.5f) ? st.lastPose.posZ : st.lastPose.posY;
-                if (px < minX) minX = px; if (px > maxX) maxX = px;
-                if (py < minYp) minYp = py; if (py > maxYp) maxYp = py;
-            }
-            if (minX > maxX) { minX = -100.0f; maxX = 100.0f; }
-            if (minYp > maxYp) { minYp = -100.0f; maxYp = 100.0f; }
-            float spanX = std::max(1.0f, maxX - minX);
-            float spanY = std::max(1.0f, maxYp - minYp);
-            // Add padding
-            float padX = spanX * padFrac; float padY = spanY * padFrac;
-            minX -= padX; maxX += padX; minYp -= padY; maxYp += padY;
-
-            auto worldToMap = [&](float x, float y){
-                float sx = (x - minX) / std::max(1e-3f, (maxX - minX));
-                float sy = (y - minYp) / std::max(1e-3f, (maxYp - minYp));
-                return ImVec2(p0.x + sx * mapSize, p0.y + (1.0f - sy) * mapSize);
-            };
-
-            // Helpers to draw looking cones/arrows
-            auto drawCone = [&](float bx, float by, float headingRad, float lengthWorld, ImU32 colorFill, ImU32 colorLine){
-                float halfFov = glm::radians(20.0f);
-                ImVec2 b = worldToMap(bx, by);
-                ImVec2 l = worldToMap(bx + cosf(headingRad - halfFov) * lengthWorld,
-                                       by + sinf(headingRad - halfFov) * lengthWorld);
-                ImVec2 r = worldToMap(bx + cosf(headingRad + halfFov) * lengthWorld,
-                                       by + sinf(headingRad + halfFov) * lengthWorld);
-                dl->AddTriangleFilled(b, l, r, colorFill);
-                dl->AddLine(b, l, colorLine);
-                dl->AddLine(b, r, colorLine);
-            };
-
-            float baseLen = 0.15f * std::max(maxX - minX, maxYp - minYp);
-            if (baseLen < 5.0f) baseLen = 5.0f;
-
-            // Draw rovers with facing cones
-            for (const auto& [id, st] : roverState) {
-                float px = st.lastPose.posX;
-                float py = (worldUp.y > 0.5f) ? st.lastPose.posZ : st.lastPose.posY;
-                ImVec2 pt = worldToMap(px, py);
-                // Highlight selected rover
-                ImU32 col = (id == selectedRover) ? IM_COL32(255, 210, 60, 255) : IM_COL32(60, 180, 255, 255);
-                dl->AddCircleFilled(pt, 4.5f, col);
-                dl->AddText(ImVec2(pt.x + 6, pt.y - 6), IM_COL32(200, 200, 200, 255), id.c_str());
-                // Heading from rover yaw
-                float yawDegRover = (worldUp.y > 0.5f) ? st.lastPose.rotYdeg : st.lastPose.rotZdeg;
-                float yawRadRover = glm::radians(yawDegRover);
-                drawCone(px, py, yawRadRover, baseLen, IM_COL32(60, 180, 255, 80), IM_COL32(60, 180, 255, 200));
-            }
-
-            // Draw camera position and viewing cone
-            float cx = camPos.x;
-            float cy = (worldUp.y > 0.5f) ? camPos.z : camPos.y;
-            ImVec2 cpt = worldToMap(cx, cy);
-            dl->AddCircleFilled(cpt, 5.0f, IM_COL32(80, 255, 120, 255));
-            // Compute camera heading from target
-            glm::vec2 dir = glm::normalize(glm::vec2(camTarget.x - camPos.x,
-                                                     (worldUp.y > 0.5f) ? (camTarget.z - camPos.z) : (camTarget.y - camPos.y)));
-            float camHeading = atan2f(dir.y, dir.x);
-            drawCone(cx, cy, camHeading, baseLen * 0.9f, IM_COL32(80, 255, 120, 60), IM_COL32(80, 255, 120, 200));
-
-            // Draw a simple crosshair/grid center
-            ImVec2 c = worldToMap(0.0f, 0.0f);
-            dl->AddLine(ImVec2(p0.x, c.y), ImVec2(p0.x + mapSize, c.y), IM_COL32(60,60,60,180));
-            dl->AddLine(ImVec2(c.x, p0.y), ImVec2(c.x, p0.y + mapSize), IM_COL32(60,60,60,180));
-
-            ImGui::Dummy(ImVec2(mapSize, mapSize));
-            ImGui::Separator();
-        }
+        // Mini-map removed per request
 
         if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::SliderFloat3("Position", &camPos.x, -100.0f, 100.0f);
@@ -298,7 +246,16 @@ int main() {
 
         // Render 3D
         float aspect = (h > 0) ? (float)w / (float)h : 1.0f;
-        // Input for free-fly
+        // Keep orbit params in sync with current offset (in case user tweaks sliders)
+        followRadius = sqrtf(followOffset.x*followOffset.x + followOffset.y*followOffset.y + followOffset.z*followOffset.z);
+        if (followRadius < 1e-3f) followRadius = 1e-3f;
+        {
+            float yawFromOffset = atan2f(followOffset.z, followOffset.x);
+            float pitchFromOffset = asinf(std::max(-1.0f, std::min(1.0f, followOffset.y / followRadius)));
+            orbitYawDeg = yawFromOffset * 180.0f / 3.14159265f;
+            orbitPitchDeg = pitchFromOffset * 180.0f / 3.14159265f;
+        }
+        // Input for free-fly or follow-orbit rotation
         if (freeFly) {
             ImGuiIO& io = ImGui::GetIO();
             bool rotateBtn = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS ||
@@ -339,6 +296,41 @@ int main() {
             if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) camPos += up * move;
             camTarget = camPos + forward * 10.0f;
             followSelected = false;
+        } else if (followSelected) {
+            // Allow orbit camera rotation while following the rover
+            ImGuiIO& io = ImGui::GetIO();
+            bool rotateBtn = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS ||
+                             glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+            bool wantRotate = rotateBtn && !io.WantCaptureMouse;
+            if (wantRotate) {
+                double mx, my; glfwGetCursorPos(window, &mx, &my);
+                if (!mouseLook) {
+                    lastMouseX = mx; lastMouseY = my; mouseLook = true;
+                    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                }
+                double dx = mx - lastMouseX, dy = my - lastMouseY;
+                lastMouseX = mx; lastMouseY = my;
+                orbitYawDeg   += static_cast<float>(dx) * mouseSensitivity;
+                float signedDy = invertYAxis ? static_cast<float>(dy) : -static_cast<float>(dy);
+                orbitPitchDeg += signedDy * mouseSensitivity;
+                if (orbitPitchDeg > 89.0f) orbitPitchDeg = 89.0f; if (orbitPitchDeg < -89.0f) orbitPitchDeg = -89.0f;
+            } else if (mouseLook) {
+                mouseLook = false;
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            }
+            // Scroll wheel zoom (adjust follow distance)
+            if (!io.WantCaptureMouse && fabsf(io.MouseWheel) > 1e-4f) {
+                const float zoomStep = 1.15f; // per wheel notch
+                followRadius /= powf(zoomStep, io.MouseWheel); // wheel>0 => zoom in (smaller radius)
+                if (followRadius < 2.0f) followRadius = 2.0f;
+                if (followRadius > 1000.0f) followRadius = 1000.0f;
+            }
+            // Recompute offset from orbit yaw/pitch
+            float yawRad = orbitYawDeg * 3.14159265f / 180.0f;
+            float pitchRad = orbitPitchDeg * 3.14159265f / 180.0f;
+            followOffset.x = followRadius * cosf(pitchRad) * cosf(yawRad);
+            followOffset.y = followRadius * sinf(pitchRad);
+            followOffset.z = followRadius * cosf(pitchRad) * sinf(yawRad);
         }
         // Follow mode updates
         if (followSelected && !freeFly) {

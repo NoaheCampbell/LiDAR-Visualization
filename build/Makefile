@@ -188,19 +188,6 @@ lidar_viewer/fast:
 .PHONY : lidar_viewer/fast
 
 #=============================================================================
-# Target rules for targets named rover_emulator
-
-# Build rule for target.
-rover_emulator: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 rover_emulator
-.PHONY : rover_emulator
-
-# fast build rule for target.
-rover_emulator/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/rover_emulator.dir/build.make CMakeFiles/rover_emulator.dir/build
-.PHONY : rover_emulator/fast
-
-#=============================================================================
 # Target rules for targets named uninstall
 
 # Build rule for target.
@@ -420,30 +407,6 @@ _deps/imgui-src/imgui_widgets.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/imgui_glfw_opengl3.dir/build.make CMakeFiles/imgui_glfw_opengl3.dir/_deps/imgui-src/imgui_widgets.cpp.s
 .PHONY : _deps/imgui-src/imgui_widgets.cpp.s
 
-emulator/rover_emulator.o: emulator/rover_emulator.cpp.o
-.PHONY : emulator/rover_emulator.o
-
-# target to build an object file
-emulator/rover_emulator.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/rover_emulator.dir/build.make CMakeFiles/rover_emulator.dir/emulator/rover_emulator.cpp.o
-.PHONY : emulator/rover_emulator.cpp.o
-
-emulator/rover_emulator.i: emulator/rover_emulator.cpp.i
-.PHONY : emulator/rover_emulator.i
-
-# target to preprocess a source file
-emulator/rover_emulator.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/rover_emulator.dir/build.make CMakeFiles/rover_emulator.dir/emulator/rover_emulator.cpp.i
-.PHONY : emulator/rover_emulator.cpp.i
-
-emulator/rover_emulator.s: emulator/rover_emulator.cpp.s
-.PHONY : emulator/rover_emulator.s
-
-# target to generate assembly for a file
-emulator/rover_emulator.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/rover_emulator.dir/build.make CMakeFiles/rover_emulator.dir/emulator/rover_emulator.cpp.s
-.PHONY : emulator/rover_emulator.cpp.s
-
 src/DataAssembler.o: src/DataAssembler.cpp.o
 .PHONY : src/DataAssembler.o
 
@@ -491,6 +454,30 @@ src/NetworkManager.s: src/NetworkManager.cpp.s
 src/NetworkManager.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lidar_viewer.dir/build.make CMakeFiles/lidar_viewer.dir/src/NetworkManager.cpp.s
 .PHONY : src/NetworkManager.cpp.s
+
+src/QuadtreeMap.o: src/QuadtreeMap.cpp.o
+.PHONY : src/QuadtreeMap.o
+
+# target to build an object file
+src/QuadtreeMap.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lidar_viewer.dir/build.make CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.o
+.PHONY : src/QuadtreeMap.cpp.o
+
+src/QuadtreeMap.i: src/QuadtreeMap.cpp.i
+.PHONY : src/QuadtreeMap.i
+
+# target to preprocess a source file
+src/QuadtreeMap.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lidar_viewer.dir/build.make CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.i
+.PHONY : src/QuadtreeMap.cpp.i
+
+src/QuadtreeMap.s: src/QuadtreeMap.cpp.s
+.PHONY : src/QuadtreeMap.s
+
+# target to generate assembly for a file
+src/QuadtreeMap.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lidar_viewer.dir/build.make CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.s
+.PHONY : src/QuadtreeMap.cpp.s
 
 src/Renderer.o: src/Renderer.cpp.o
 .PHONY : src/Renderer.o
@@ -558,7 +545,6 @@ help:
 	@echo "... glm"
 	@echo "... imgui_glfw_opengl3"
 	@echo "... lidar_viewer"
-	@echo "... rover_emulator"
 	@echo "... _deps/imgui-src/backends/imgui_impl_glfw.o"
 	@echo "... _deps/imgui-src/backends/imgui_impl_glfw.i"
 	@echo "... _deps/imgui-src/backends/imgui_impl_glfw.s"
@@ -580,15 +566,15 @@ help:
 	@echo "... _deps/imgui-src/imgui_widgets.o"
 	@echo "... _deps/imgui-src/imgui_widgets.i"
 	@echo "... _deps/imgui-src/imgui_widgets.s"
-	@echo "... emulator/rover_emulator.o"
-	@echo "... emulator/rover_emulator.i"
-	@echo "... emulator/rover_emulator.s"
 	@echo "... src/DataAssembler.o"
 	@echo "... src/DataAssembler.i"
 	@echo "... src/DataAssembler.s"
 	@echo "... src/NetworkManager.o"
 	@echo "... src/NetworkManager.i"
 	@echo "... src/NetworkManager.s"
+	@echo "... src/QuadtreeMap.o"
+	@echo "... src/QuadtreeMap.i"
+	@echo "... src/QuadtreeMap.s"
 	@echo "... src/Renderer.o"
 	@echo "... src/Renderer.i"
 	@echo "... src/Renderer.s"

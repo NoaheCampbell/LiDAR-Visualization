@@ -97,10 +97,24 @@ CMakeFiles/lidar_viewer.dir/src/NetworkManager.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/lidar_viewer.dir/src/NetworkManager.cpp.s"
 	/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/noah/Downloads/lidar_challenge/src/NetworkManager.cpp -o CMakeFiles/lidar_viewer.dir/src/NetworkManager.cpp.s
 
+CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.o: CMakeFiles/lidar_viewer.dir/flags.make
+CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.o: /Users/noah/Downloads/lidar_challenge/src/QuadtreeMap.cpp
+CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.o: CMakeFiles/lidar_viewer.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/noah/Downloads/lidar_challenge/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.o"
+	/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.o -MF CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.o.d -o CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.o -c /Users/noah/Downloads/lidar_challenge/src/QuadtreeMap.cpp
+
+CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.i"
+	/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/noah/Downloads/lidar_challenge/src/QuadtreeMap.cpp > CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.i
+
+CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.s"
+	/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/noah/Downloads/lidar_challenge/src/QuadtreeMap.cpp -o CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.s
+
 CMakeFiles/lidar_viewer.dir/src/Renderer.cpp.o: CMakeFiles/lidar_viewer.dir/flags.make
 CMakeFiles/lidar_viewer.dir/src/Renderer.cpp.o: /Users/noah/Downloads/lidar_challenge/src/Renderer.cpp
 CMakeFiles/lidar_viewer.dir/src/Renderer.cpp.o: CMakeFiles/lidar_viewer.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/noah/Downloads/lidar_challenge/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/lidar_viewer.dir/src/Renderer.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/noah/Downloads/lidar_challenge/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/lidar_viewer.dir/src/Renderer.cpp.o"
 	/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/lidar_viewer.dir/src/Renderer.cpp.o -MF CMakeFiles/lidar_viewer.dir/src/Renderer.cpp.o.d -o CMakeFiles/lidar_viewer.dir/src/Renderer.cpp.o -c /Users/noah/Downloads/lidar_challenge/src/Renderer.cpp
 
 CMakeFiles/lidar_viewer.dir/src/Renderer.cpp.i: cmake_force
@@ -114,7 +128,7 @@ CMakeFiles/lidar_viewer.dir/src/Renderer.cpp.s: cmake_force
 CMakeFiles/lidar_viewer.dir/src/main.cpp.o: CMakeFiles/lidar_viewer.dir/flags.make
 CMakeFiles/lidar_viewer.dir/src/main.cpp.o: /Users/noah/Downloads/lidar_challenge/src/main.cpp
 CMakeFiles/lidar_viewer.dir/src/main.cpp.o: CMakeFiles/lidar_viewer.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/noah/Downloads/lidar_challenge/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/lidar_viewer.dir/src/main.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/noah/Downloads/lidar_challenge/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/lidar_viewer.dir/src/main.cpp.o"
 	/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/lidar_viewer.dir/src/main.cpp.o -MF CMakeFiles/lidar_viewer.dir/src/main.cpp.o.d -o CMakeFiles/lidar_viewer.dir/src/main.cpp.o -c /Users/noah/Downloads/lidar_challenge/src/main.cpp
 
 CMakeFiles/lidar_viewer.dir/src/main.cpp.i: cmake_force
@@ -129,6 +143,7 @@ CMakeFiles/lidar_viewer.dir/src/main.cpp.s: cmake_force
 lidar_viewer_OBJECTS = \
 "CMakeFiles/lidar_viewer.dir/src/DataAssembler.cpp.o" \
 "CMakeFiles/lidar_viewer.dir/src/NetworkManager.cpp.o" \
+"CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.o" \
 "CMakeFiles/lidar_viewer.dir/src/Renderer.cpp.o" \
 "CMakeFiles/lidar_viewer.dir/src/main.cpp.o"
 
@@ -137,6 +152,7 @@ lidar_viewer_EXTERNAL_OBJECTS =
 
 lidar_viewer: CMakeFiles/lidar_viewer.dir/src/DataAssembler.cpp.o
 lidar_viewer: CMakeFiles/lidar_viewer.dir/src/NetworkManager.cpp.o
+lidar_viewer: CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.o
 lidar_viewer: CMakeFiles/lidar_viewer.dir/src/Renderer.cpp.o
 lidar_viewer: CMakeFiles/lidar_viewer.dir/src/main.cpp.o
 lidar_viewer: CMakeFiles/lidar_viewer.dir/build.make
@@ -145,7 +161,7 @@ lidar_viewer: /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platfo
 lidar_viewer: _deps/glm-build/glm/libglm.a
 lidar_viewer: _deps/glfw-build/src/libglfw3.a
 lidar_viewer: CMakeFiles/lidar_viewer.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/noah/Downloads/lidar_challenge/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Linking CXX executable lidar_viewer"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/noah/Downloads/lidar_challenge/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Linking CXX executable lidar_viewer"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/lidar_viewer.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

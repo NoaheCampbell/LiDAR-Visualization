@@ -65,7 +65,6 @@ CMAKE_BINARY_DIR = /Users/noah/Downloads/lidar_challenge/build
 # The main recursive "all" target.
 all: CMakeFiles/imgui_glfw_opengl3.dir/all
 all: CMakeFiles/lidar_viewer.dir/all
-all: CMakeFiles/rover_emulator.dir/all
 all: _deps/glfw-build/all
 all: _deps/glm-build/all
 .PHONY : all
@@ -78,7 +77,6 @@ preinstall: _deps/glm-build/preinstall
 # The main recursive "clean" target.
 clean: CMakeFiles/imgui_glfw_opengl3.dir/clean
 clean: CMakeFiles/lidar_viewer.dir/clean
-clean: CMakeFiles/rover_emulator.dir/clean
 clean: _deps/glfw-build/clean
 clean: _deps/glm-build/clean
 .PHONY : clean
@@ -180,12 +178,12 @@ CMakeFiles/lidar_viewer.dir/all: _deps/glfw-build/src/CMakeFiles/glfw.dir/all
 CMakeFiles/lidar_viewer.dir/all: _deps/glm-build/glm/CMakeFiles/glm.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lidar_viewer.dir/build.make CMakeFiles/lidar_viewer.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lidar_viewer.dir/build.make CMakeFiles/lidar_viewer.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/noah/Downloads/lidar_challenge/build/CMakeFiles --progress-num=33,34,35,36,37 "Built target lidar_viewer"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/noah/Downloads/lidar_challenge/build/CMakeFiles --progress-num=33,34,35,36,37,38 "Built target lidar_viewer"
 .PHONY : CMakeFiles/lidar_viewer.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/lidar_viewer.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/noah/Downloads/lidar_challenge/build/CMakeFiles 37
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/noah/Downloads/lidar_challenge/build/CMakeFiles 38
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/lidar_viewer.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/noah/Downloads/lidar_challenge/build/CMakeFiles 0
 .PHONY : CMakeFiles/lidar_viewer.dir/rule
@@ -198,32 +196,6 @@ lidar_viewer: CMakeFiles/lidar_viewer.dir/rule
 CMakeFiles/lidar_viewer.dir/clean:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lidar_viewer.dir/build.make CMakeFiles/lidar_viewer.dir/clean
 .PHONY : CMakeFiles/lidar_viewer.dir/clean
-
-#=============================================================================
-# Target rules for target CMakeFiles/rover_emulator.dir
-
-# All Build rule for target.
-CMakeFiles/rover_emulator.dir/all:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/rover_emulator.dir/build.make CMakeFiles/rover_emulator.dir/depend
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/rover_emulator.dir/build.make CMakeFiles/rover_emulator.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/noah/Downloads/lidar_challenge/build/CMakeFiles --progress-num=38,39 "Built target rover_emulator"
-.PHONY : CMakeFiles/rover_emulator.dir/all
-
-# Build rule for subdir invocation for target.
-CMakeFiles/rover_emulator.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/noah/Downloads/lidar_challenge/build/CMakeFiles 2
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/rover_emulator.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/noah/Downloads/lidar_challenge/build/CMakeFiles 0
-.PHONY : CMakeFiles/rover_emulator.dir/rule
-
-# Convenience name for target.
-rover_emulator: CMakeFiles/rover_emulator.dir/rule
-.PHONY : rover_emulator
-
-# clean rule for target.
-CMakeFiles/rover_emulator.dir/clean:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/rover_emulator.dir/build.make CMakeFiles/rover_emulator.dir/clean
-.PHONY : CMakeFiles/rover_emulator.dir/clean
 
 #=============================================================================
 # Target rules for target _deps/glfw-build/CMakeFiles/uninstall.dir
@@ -284,7 +256,7 @@ _deps/glfw-build/src/CMakeFiles/glfw.dir/clean:
 _deps/glfw-build/src/CMakeFiles/update_mappings.dir/all:
 	$(MAKE) $(MAKESILENT) -f _deps/glfw-build/src/CMakeFiles/update_mappings.dir/build.make _deps/glfw-build/src/CMakeFiles/update_mappings.dir/depend
 	$(MAKE) $(MAKESILENT) -f _deps/glfw-build/src/CMakeFiles/update_mappings.dir/build.make _deps/glfw-build/src/CMakeFiles/update_mappings.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/noah/Downloads/lidar_challenge/build/CMakeFiles --progress-num=40 "Built target update_mappings"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/noah/Downloads/lidar_challenge/build/CMakeFiles --progress-num=39 "Built target update_mappings"
 .PHONY : _deps/glfw-build/src/CMakeFiles/update_mappings.dir/all
 
 # Build rule for subdir invocation for target.

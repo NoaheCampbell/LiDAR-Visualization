@@ -1,6 +1,5 @@
 /Users/noah/Downloads/lidar_challenge/build/CMakeFiles/imgui_glfw_opengl3.dir
 /Users/noah/Downloads/lidar_challenge/build/CMakeFiles/lidar_viewer.dir
-/Users/noah/Downloads/lidar_challenge/build/CMakeFiles/rover_emulator.dir
 /Users/noah/Downloads/lidar_challenge/build/CMakeFiles/edit_cache.dir
 /Users/noah/Downloads/lidar_challenge/build/CMakeFiles/rebuild_cache.dir
 /Users/noah/Downloads/lidar_challenge/build/CMakeFiles/list_install_components.dir

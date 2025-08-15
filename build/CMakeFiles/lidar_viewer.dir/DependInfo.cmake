@@ -10,6 +10,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/Users/noah/Downloads/lidar_challenge/src/DataAssembler.cpp" "CMakeFiles/lidar_viewer.dir/src/DataAssembler.cpp.o" "gcc" "CMakeFiles/lidar_viewer.dir/src/DataAssembler.cpp.o.d"
   "/Users/noah/Downloads/lidar_challenge/src/NetworkManager.cpp" "CMakeFiles/lidar_viewer.dir/src/NetworkManager.cpp.o" "gcc" "CMakeFiles/lidar_viewer.dir/src/NetworkManager.cpp.o.d"
+  "/Users/noah/Downloads/lidar_challenge/src/QuadtreeMap.cpp" "CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.o" "gcc" "CMakeFiles/lidar_viewer.dir/src/QuadtreeMap.cpp.o.d"
   "/Users/noah/Downloads/lidar_challenge/src/Renderer.cpp" "CMakeFiles/lidar_viewer.dir/src/Renderer.cpp.o" "gcc" "CMakeFiles/lidar_viewer.dir/src/Renderer.cpp.o.d"
   "/Users/noah/Downloads/lidar_challenge/src/main.cpp" "CMakeFiles/lidar_viewer.dir/src/main.cpp.o" "gcc" "CMakeFiles/lidar_viewer.dir/src/main.cpp.o.d"
   )

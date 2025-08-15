@@ -799,6 +799,8 @@ CMakeFiles/lidar_viewer.dir/src/main.cpp.o: \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__functional/perfect_forward.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/map \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__tree \
+  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/deque \
+  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__fwd/deque.h \
   /Users/noah/Downloads/lidar_challenge/build/_deps/glm-src/glm/gtc/matrix_transform.hpp \
   /Users/noah/Downloads/lidar_challenge/build/_deps/glm-src/glm/gtc/../mat4x4.hpp \
   /Users/noah/Downloads/lidar_challenge/build/_deps/glm-src/glm/gtc/.././ext/matrix_double4x4.hpp \
@@ -995,9 +997,7 @@ CMakeFiles/lidar_viewer.dir/src/main.cpp.o: \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/ostream \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/format \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/queue \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__fwd/deque.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__fwd/queue.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/deque \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/stack \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__fwd/stack.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/print \
@@ -1040,4 +1040,5 @@ CMakeFiles/lidar_viewer.dir/src/main.cpp.o: \
   /Users/noah/Downloads/lidar_challenge/build/_deps/glm-src/glm/vector_relational.hpp \
   /Users/noah/Downloads/lidar_challenge/build/_deps/glm-src/glm/integer.hpp \
   /Users/noah/Downloads/lidar_challenge/build/_deps/glm-src/glm/detail/func_integer.inl \
-  /Users/noah/Downloads/lidar_challenge/build/_deps/glm-src/glm/detail/_vectorize.hpp
+  /Users/noah/Downloads/lidar_challenge/build/_deps/glm-src/glm/detail/_vectorize.hpp \
+  /Users/noah/Downloads/lidar_challenge/src/QuadtreeMap.hpp

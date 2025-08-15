@@ -60,15 +60,17 @@ void DataAssembler::maintenance(double /*nowSec*/) {
         }
     }
 
-    // Merge completed into global and enforce memory cap
-    while (!completed.empty()) {
-        const auto& sc = completed.front();
-        globalTerrain.insert(globalTerrain.end(), sc.points.begin(), sc.points.end());
-        completed.pop_front();
-    }
-    if (globalTerrain.size() > maxPointsGlobal) {
-        size_t drop = globalTerrain.size() - maxPointsGlobal;
-        globalTerrain.erase(globalTerrain.begin(), globalTerrain.begin() + static_cast<long>(drop));
+    // Optionally mirror completed points into a global point buffer
+    if (storeGlobalPoints) {
+        auto tmp = completed; // copy so retrieveCompleted still returns them
+        for (const auto& sc : tmp) {
+            globalTerrain.insert(globalTerrain.end(), sc.points.begin(), sc.points.end());
+        }
+        // Enforce cap if configured
+        if (maxPointsGlobal > 0 && globalTerrain.size() > maxPointsGlobal) {
+            size_t drop = globalTerrain.size() - maxPointsGlobal;
+            globalTerrain.erase(globalTerrain.begin(), globalTerrain.begin() + static_cast<long>(drop));
+        }
     }
 }
 

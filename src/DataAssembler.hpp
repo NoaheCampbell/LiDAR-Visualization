@@ -24,6 +24,7 @@ public:
     std::vector<CompletedScan> retrieveCompleted();
 
     void setMaxPoints(size_t maxPoints) { maxPointsGlobal = maxPoints; }
+    void setStoreGlobalPoints(bool enable) { storeGlobalPoints = enable; }
 
     // Global terrain buffer access
     const std::vector<LidarPoint>& getGlobalTerrain() const { return globalTerrain; }
@@ -58,6 +59,7 @@ private:
 
     std::vector<LidarPoint> globalTerrain;
     size_t maxPointsGlobal = 2'000'000; // auto-tune later
+    bool storeGlobalPoints = false;
 };
 
 
