@@ -9,8 +9,8 @@ We are building a **real-time desktop GUI** that:
 1. Connects to **five simulated autonomous rovers** over UDP (localhost) using fixed ports defined in `rover_profiles.h`.
 2. **Visualizes** rover movement and LiDAR point cloud data in a **3D scene**.
 3. Provides a **control interface** to send rover button commands (bits 0–3).
-4. Updates **terrain maps** persistently as LiDAR data streams in.
-5. Runs on **Linux** (tested on Ubuntu 22.04) with **<50 ms** end-to-end latency.
+4. Updates **terrain maps** persistently as LiDAR data streams in (runtime persistence only).
+5. Runs on **Linux** (Ubuntu 22.04) optimized for integrated graphics with **<50 ms** end-to-end latency.
 
 The rovers are emulated via the provided **`rover_emulator`** program, which streams:
 - **Pose packets** (position & orientation)
@@ -81,16 +81,17 @@ struct VehicleTelem {
 ### **5.1 Visualization**
 - **3D Scene**
   - Flat starting plane.
-  - Low-poly rover models with unique colors.
+  - Simple geometric rover models with unique colors (no vehicle-specific models required).
   - Camera:  
     - **Free-fly mode** (WASD + mouse look, speed adjustable).  
     - **Follow mode** (locks to selected rover, with smooth interpolation).
 - **LiDAR Terrain**
-  - Maintain **persistent point cloud per rover** in memory.
-  - Merge into a **global terrain buffer** for rendering.
+  - Maintain **persistent point cloud per rover** in memory (runtime only).
+  - Merge into a **global terrain buffer** for dense point cloud visualization.
   - Store points with `(x, y, z, roverID, timestamp)`.
-  - **Persistence policy:** Keep last **N million points** (configurable) to manage memory; discard oldest when limit reached.
+  - **Persistence policy:** Keep last **N million points** (auto-tuned based on performance) to manage memory; discard oldest when limit reached.
   - Optional **decimation** (keep 1 in N points) and **fade** (drop points older than configurable time window).
+  - **Rendering:** Dense point cloud visualization (no surface reconstruction required).
 - **Pose**
   - Update rover transforms from `PosePacket` in real time.
 
@@ -142,10 +143,11 @@ Modules:
    - Outbound for button commands.
 2. **DataAssembler**
    - LiDAR chunk reassembly.
-   - Terrain persistence policy.
+   - Terrain persistence policy (runtime only).
 3. **Renderer**
-   - OpenGL or Vulkan.
-   - Draw rovers & point clouds (color by rover).
+   - OpenGL (integrated graphics compatible).
+   - Draw simple geometric rovers & dense point clouds (color by rover).
+   - Optimize for integrated graphics performance.
 4. **UI Layer**
    - ImGui-based interface.
    - Panels for selection, control, diagnostics.
@@ -213,8 +215,17 @@ Modules:
 ## **9. Deliverables**
 - Source code with Linux build instructions.
 - Executable connecting to provided emulator.
+- Optimized for integrated graphics on modern hardware.
 - README including:
   - Port mapping.
   - Controls.
   - Dependencies.
   - Configurable parameters.
+
+## **10. Clarifications**
+- **Rover Models:** Simple geometric shapes (no construction vehicle models needed - not provided in project).
+- **Terrain Visualization:** Dense point cloud only (no surface reconstruction).
+- **Graphics Target:** Integrated graphics compatible (modern laptop/desktop).
+- **Memory Limits:** Auto-tuned based on performance testing.
+- **Data Persistence:** Runtime only (no session persistence).
+- **UI Terminology:** Generic rover terminology (no construction-specific language required).

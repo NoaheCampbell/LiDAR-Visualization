@@ -1,30 +1,35 @@
 #!/bin/bash
 
+set -euo pipefail
+
+# Always resolve paths relative to the repo root (script directory)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BINARY="$SCRIPT_DIR/build/rover_emulator"
+
 # Check if --no-noise is passed
 NOISE_FLAG=""
-if [[ "$1" == "--no-noise" ]]; then
+if [[ "${1:-}" == "--no-noise" ]]; then
     NOISE_FLAG="--no-noise"
 fi
 
-# Start rover emulator instances for IDs 1-5
-PIDS=()
+if [[ ! -x "$BINARY" ]]; then
+  echo "Error: $BINARY not found or not executable. Build the project first." >&2
+  exit 1
+fi
 
+# Start rover emulator instances for IDs 1-5 from repo root so data paths resolve
+PIDS=()
 for ID in {1..5}; do
-    ./rover_emulator "$ID" $NOISE_FLAG &  # Append the noise flag if specified
-    PIDS+=($!)  # Store PID
+    ( cd "$SCRIPT_DIR" && "$BINARY" "$ID" $NOISE_FLAG ) &
+    PIDS+=($!)
 done
 
-# Function to kill all child processes on script exit
 cleanup() {
     echo "Terminating all rover instances..."
     for PID in "${PIDS[@]}"; do
-        kill "$PID" 2>/dev/null
+        kill "$PID" 2>/dev/null || true
     done
     exit 0
 }
-
-# Trap signals to ensure cleanup happens
 trap cleanup SIGINT SIGTERM EXIT
-
-# Wait for all processes to finish
 wait

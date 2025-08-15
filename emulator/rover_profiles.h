@@ -1,6 +1,9 @@
 #ifndef ROVER_PROFILES_H
 #define ROVER_PROFILES_H
 
+#include <map>
+#include <string>
+
 // --------------------------------------------------------------------
 // Rover's "profile" data:
 // - dataFile: path to the .dat file
