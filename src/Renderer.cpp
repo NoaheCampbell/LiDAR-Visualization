@@ -524,6 +524,13 @@ void Renderer::uploadDirtyTiles(const std::vector<TileUpdate>& updates){
         float x = originX + i * step;
         float z = originZ + j * step;
         float y = h(j,i);
+        // Snap shared edges (right/top) to global ground sampler to avoid cracks
+        if ((i == N - 1 || j == N - 1) && groundSampler) {
+          float ySnap = y; uint16_t nTmp = 0;
+          if (groundSampler(x, z, ySnap, nTmp)) {
+            y = ySnap;
+          }
+        }
         // central differences for normal
         int im = std::max(i-1, 0), ip = std::min(i+1, N-1);
         int jm = std::max(j-1, 0), jp = std::min(j+1, N-1);
