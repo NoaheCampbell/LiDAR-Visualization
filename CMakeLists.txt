@@ -84,3 +84,24 @@ if(BUILD_EMULATOR)
 endif()
 
 
+# Convenience targets to run emulators from the CMake build directory
+if(BUILD_EMULATOR)
+  # Ensure data archives are extracted in source dir, then run all rovers
+  add_custom_target(run
+    COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_SOURCE_DIR} make extract
+    COMMAND ${CMAKE_SOURCE_DIR}/run_rovers.sh
+    DEPENDS rover_emulator
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    USES_TERMINAL
+  )
+
+  add_custom_target(run-noiseless
+    COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_SOURCE_DIR} make extract
+    COMMAND ${CMAKE_SOURCE_DIR}/run_rovers.sh --no-noise
+    DEPENDS rover_emulator
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    USES_TERMINAL
+  )
+endif()
+
+

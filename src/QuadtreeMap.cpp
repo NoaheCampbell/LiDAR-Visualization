@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <unordered_map>
 
 // ---- Utility time ----
 double ElevationMap::nowSeconds() {
@@ -61,7 +62,8 @@ static inline void emaUpdate(float& mean, float newVal, float alpha) {
 
 void Tile::integratePoint(const LidarPoint& p, double nowTs,
                           float tauAccept, float tauReplace,
-                          int K, int Nsat, int Nconf, float tauUpload) {
+                          int K, int Nsat, int Nconf, float tauUpload,
+                          float disagreeWindowSeconds) {
     QuadNode* leaf = locateLeaf(p.x, p.z);
     ElevCell& c = leaf->cell;
     if (!c.valid) {
@@ -93,7 +95,7 @@ void Tile::integratePoint(const LidarPoint& p, double nowTs,
         }
     } else if (dz >= tauReplace) {
         // Within time window?
-        if (nowTs - c.lastDisagreeTs <= 1.0) {
+        if (nowTs - c.lastDisagreeTs <= disagreeWindowSeconds) {
             if (c.disagreeHits < 255) c.disagreeHits++;
         } else {
             c.disagreeHits = 1;
@@ -111,14 +113,14 @@ void Tile::integratePoint(const LidarPoint& p, double nowTs,
         }
     } else {
         // gray zone: small-α EMA
-        emaUpdate(c.z_mean, p.y, 0.1f);
+        emaUpdate(c.z_mean, p.y, 0.05f);
         if (std::fabs(c.z_mean - c.prev_z_mean) > tauUpload) {
             c.prev_z_mean = c.z_mean;
             c.flags |= ELEV_DIRTY;
             dirty = true;
         }
         // decay disagreement if too old
-        if (nowTs - c.lastDisagreeTs > 1.0) c.disagreeHits = 0;
+        if (nowTs - c.lastDisagreeTs > disagreeWindowSeconds) c.disagreeHits = 0;
     }
 }
 
@@ -164,7 +166,8 @@ void Tile::buildHeightGrid(int gridNVertices, std::vector<float>& outHeights) co
 
 // ---- ElevationMap ----
 ElevationMap::ElevationMap() {
-    setParameters(32.0f, 0.25f, 0.25f, 0.7f, 3, 20, 5, 0.06f, 1.0f);
+    // Tuned for noisier input (sigma ~0.5 m): wider acceptance and replacement, higher confirmation
+    setParameters(32.0f, 0.25f, 0.7f, 1.6f, 8, 60, 12, 0.15f, 2.0f);
 }
 
 void ElevationMap::setParameters(float tileSizeMeters,
@@ -208,11 +211,41 @@ Tile& ElevationMap::getOrCreateTile(int tx, int tz) {
 }
 
 void ElevationMap::integrateScan(const std::vector<LidarPoint>& points, double nowTs) {
+    // Robustify per-scan by spatially grouping points at base cell resolution
+    struct Group {
+        float xSum = 0.0f;
+        float zSum = 0.0f;
+        std::vector<float> ys;
+        int count = 0;
+    };
+    std::unordered_map<long long, Group> groups;
+    groups.reserve(points.size() / 4 + 8);
+    const float cell = std::max(baseCellRes, 1.0f); // aggregate at ~1m cells for robustness
     for (const auto& p : points) {
-        int tx = static_cast<int>(std::floor(p.x / tileSize));
-        int tz = static_cast<int>(std::floor(p.z / tileSize));
+        int ix = static_cast<int>(std::floor(p.x / cell));
+        int iz = static_cast<int>(std::floor(p.z / cell));
+        long long key = (static_cast<long long>(ix) << 32) ^ (static_cast<unsigned long long>(iz) & 0xffffffffull);
+        auto& g = groups[key];
+        g.xSum += p.x;
+        g.zSum += p.z;
+        g.ys.push_back(p.y);
+        g.count++;
+    }
+    for (const auto& kv : groups) {
+        const Group& g = kv.second;
+        if (g.count == 0) continue;
+        // median Y for robustness against outliers
+        std::vector<float> ys = g.ys;
+        size_t mid = ys.size() / 2;
+        std::nth_element(ys.begin(), ys.begin() + mid, ys.end());
+        float yMed = ys[mid];
+        float xAvg = g.xSum / static_cast<float>(g.count);
+        float zAvg = g.zSum / static_cast<float>(g.count);
+        LidarPoint q{ xAvg, yMed, zAvg };
+        int tx = static_cast<int>(std::floor(q.x / tileSize));
+        int tz = static_cast<int>(std::floor(q.z / tileSize));
         Tile& tile = getOrCreateTile(tx, tz);
-        tile.integratePoint(p, nowTs, tauAccept, tauReplace, K, Nsat, Nconf, tauUpload);
+        tile.integratePoint(q, nowTs, tauAccept, tauReplace, K, Nsat, Nconf, tauUpload, disagreeWindow);
     }
 }
 

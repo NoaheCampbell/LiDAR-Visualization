@@ -1,3 +1,4 @@
 data/*.dat
 data/*.tar.xz
 *.DS_Store
+/build/

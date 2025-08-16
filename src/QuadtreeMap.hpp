@@ -63,7 +63,8 @@ struct Tile {
     QuadNode* locateLeaf(float x, float z);
     void integratePoint(const LidarPoint& p, double nowTs,
                         float tauAccept, float tauReplace,
-                        int K, int Nsat, int Nconf, float tauUpload);
+                        int K, int Nsat, int Nconf, float tauUpload,
+                        float disagreeWindowSeconds);
 
     // Builds a dense (N+1)x(N+1) height grid covering the tile by sampling leaf z_mean.
     void buildHeightGrid(int gridNVertices, std::vector<float>& outHeights) const;

@@ -13,6 +13,7 @@
 #include <map>
 #include <deque>
 #include <string>
+#include <unordered_map>
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -70,6 +71,8 @@ int main() {
     auto profiles = getDefaultProfiles();
     std::map<std::string, RoverState> roverState;
     for (const auto& [id, prof] : profiles) { (void)prof; roverState[id] = RoverState{}; }
+    // Smoothed positions for camera follow (per rover)
+    std::unordered_map<std::string, glm::vec3> smoothedPos;
 
     NetworkManager net;
     DataAssembler assembler;
@@ -253,6 +256,22 @@ int main() {
             if (ImGui::SliderFloat("Terrain draw distance", &tdd, 200.0f, 3000.0f)) {
                 renderer.setTerrainDrawDistance(tdd);
             }
+            bool autoRange = renderer.getAutoHeightRange();
+            if (ImGui::Checkbox("Auto height range", &autoRange)) {
+                renderer.setAutoHeightRange(autoRange);
+            }
+            float minY = renderer.getObservedMinHeight();
+            float maxY = renderer.getObservedMaxHeight();
+            ImGui::Text("Observed range: [%.2f, %.2f] m", minY, maxY);
+            float manMin, manMax; renderer.getManualHeightRange(manMin, manMax);
+            if (!autoRange) {
+                if (ImGui::DragFloat("Manual min Y", &manMin, 0.1f)) {
+                    renderer.setManualHeightRange(manMin, manMax);
+                }
+                if (ImGui::DragFloat("Manual max Y", &manMax, 0.1f)) {
+                    renderer.setManualHeightRange(manMin, manMax);
+                }
+            }
         }
             ImGui::Separator();
         }
@@ -374,16 +393,22 @@ int main() {
         // Follow mode updates
         if (followSelected && !freeFly && !suppressFollowOnce) {
             const auto& p = roverState[selectedRover].lastPose;
-            float gy = p.posY; uint16_t gn = 0;
-            if (elevMap.getGroundAt(p.posX, p.posZ, &gy, &gn)) {
-                glm::vec3 tgt = {p.posX, gy + 0.8f, p.posZ};
-                camTarget = tgt;
-                camPos = tgt + followOffset;
+            // Update smoothed position for the selected rover (EMA with ~0.3s time constant)
+            auto &sp = smoothedPos[selectedRover];
+            if (sp == glm::vec3(0.0f)) {
+                sp = glm::vec3(p.posX, p.posY, p.posZ);
             } else {
-                glm::vec3 tgt = {p.posX, p.posY, p.posZ};
-                camTarget = tgt;
-                camPos = tgt + followOffset;
+                float tau = 0.3f; // seconds
+                float alpha = 1.0f - expf(-dt / std::max(1e-3f, tau));
+                glm::vec3 meas(p.posX, p.posY, p.posZ);
+                sp = sp + alpha * (meas - sp);
             }
+            // Camera target follows smoothed rover pose directly (no ground coupling)
+            static glm::vec3 camTargetSmoothed = sp;
+            float tauT = 0.4f; float alphaT = 1.0f - expf(-dt / std::max(1e-3f, tauT));
+            camTargetSmoothed = camTargetSmoothed + alphaT * (sp - camTargetSmoothed);
+            camTarget = camTargetSmoothed;
+            camPos = camTarget + followOffset;
         }
         // Keyboard center hotkey (edge-triggered) -> set pending flag
         {
@@ -395,11 +420,15 @@ int main() {
         // Apply pending center AFTER follow/free-fly camera updates to avoid flicker
         if (pendingCenter) {
             const auto& p = roverState[selectedRover].lastPose;
-            float gy = p.posY; uint16_t gn = 0;
-            if (elevMap.getGroundAt(p.posX, p.posZ, &gy, &gn)) {
-                camTarget = {p.posX, gy + 0.8f, p.posZ};
+            auto itSp = smoothedPos.find(selectedRover);
+            glm::vec3 base = (itSp != smoothedPos.end() && itSp->second != glm::vec3(0.0f))
+                             ? itSp->second
+                             : glm::vec3(p.posX, p.posY, p.posZ);
+            float gy = base.y; uint16_t gn = 0;
+            if (elevMap.getGroundAt(base.x, base.z, &gy, &gn)) {
+                camTarget = {base.x, gy + 0.8f, base.z};
             } else {
-                camTarget = {p.posX, p.posY, p.posZ};
+                camTarget = base;
             }
             camPos = camTarget + followOffset;
             // If in free-fly, align yaw/pitch so forward looks at the rover
@@ -417,6 +446,8 @@ int main() {
         glm::mat4 proj = glm::perspective(glm::radians(fovDeg), aspect, 0.1f, 500.0f);
         glm::mat4 view = glm::lookAt(camPos, camTarget, worldUp);
         renderer.setViewProjection(view, proj);
+        // Ensure rover rendering ignores terrain orientation for stability
+        renderer.setAlignToTerrain(false);
         renderer.renderFrame(assembler.getGlobalTerrain(), fps, (int)assembler.getGlobalTerrain().size());
 
         // ImGui draw
