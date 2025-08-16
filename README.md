@@ -53,6 +53,16 @@ To run five concurrent rover instances, use:
 ./run_rovers.sh
 ```
 
+To start the LiDAR rover visualization, run:
+
+```
+cmake -B ./build -DCMAKE_BUILD_TYPE=Release
+
+cmake --build ./build --parallel
+
+./build/lidar_viewer
+```
+For best results, run noiseless.
 
 ## Termination
 If `run_rovers.sh` is terminated, all running rover instances are killed automatically.
